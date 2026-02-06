@@ -1,0 +1,71 @@
+# Source files
+src/
+*.ts
+*.tsx
+
+# Development
+*.test.ts
+*.spec.ts
+tests/
+test/
+__tests__/
+
+# Configuration
+tsconfig.json
+tsconfig*.json
+vitest.config.ts
+
+# Build tools
+Makefile
+.turbo/
+
+# Git
+.git/
+.gitignore
+.github/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*.sublime-project
+*.sublime-workspace
+.DS_Store
+
+# Logs
+*.log
+logs/
+npm-debug.log*
+
+# Environment
+.env
+.env.local
+.env.*.local
+.env.*.vault
+
+# Dependencies
+node_modules/
+package-lock.json
+yarn.lock
+
+# Testing
+coverage/
+.nyc_output/
+.jest/
+
+# Cache
+.eslintcache
+.cache/
+
+# OS
+Thumbs.db
+
+# Documentation (README and LICENSE are included)
+docs/
+examples/
+
+# CI/CD
+.github/workflows/
+.gitlab-ci.yml
+.circleci/
