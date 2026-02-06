@@ -4,4 +4,12 @@ dist/
 .DS_Store
 .env
 .env.local
+.env.production
 coverage/
+*.key
+*.pem
+*.p8
+credentials.json
+secrets/
+.vscode/
+.idea/
