@@ -305,9 +305,16 @@ export class AgentsBankSDK {
   }
 
   /**
-   * Get wallet details
+   * Get wallet details or list all wallets
+   * FIX #3: Support getWallet('all') to return all wallets for authenticated agent
    */
-  async getWallet(walletId: string): Promise<WalletInfo> {
+  async getWallet(walletId: string): Promise<WalletInfo | WalletInfo[]> {
+    // Special case: get all wallets
+    if (walletId === 'all') {
+      const { data } = await this.client.get('/wallets');
+      return Array.isArray(data.wallets) ? data.wallets : [data.wallets];
+    }
+    // Get specific wallet by UUID
     const { data } = await this.client.get(`/wallets/${walletId}`);
     return data;
   }
@@ -330,12 +337,16 @@ export class AgentsBankSDK {
 
   /**
    * Estimate gas for transaction
+   * FIX #1: Added amount parameter with proper validation
    */
   async estimateGas(
     walletId: string,
     toAddress: string,
-    amount: string
+    amount: string = '1'
   ): Promise<{ estimated_gas: string }> {
+    if (!amount || amount === '') {
+      throw new Error('Amount parameter is required and cannot be empty');
+    }
     const { data } = await this.client.get(`/wallets/${walletId}/estimate-gas`, {
       params: { to_address: toAddress, amount },
     });

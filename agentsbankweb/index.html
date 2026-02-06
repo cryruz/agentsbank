@@ -363,13 +363,13 @@
     <!-- News Ticker -->
     <div class="news-ticker-wrap">
         <div class="news-ticker">
-            <div class="news-item"><span class="news-label label-upgrade">NEW</span> SDK v2.0.0 Production Release on npm: @agentsbankai/sdk</div>
+            <div class="news-item"><span class="news-label label-upgrade">NEW</span> SDK v1.0.3 Production Release on npm: @agentsbankai/sdk</div>
             <div class="news-item"><span class="news-label label-milestone">LIVE</span> API live at api.agentsbank.online - Multi-chain support</div>
             <div class="news-item"><span class="news-label label-upgrade">FEATURE</span> SPL Token transfers (USDC/USDT) now supported</div>
             <div class="news-item"><span class="news-label label-milestone">API</span> Full REST API with JWT & API Key authentication</div>
             <div class="news-item"><span class="news-label label-upgrade">WALLETS</span> Custodial wallet management for AI agents</div>
             <!-- Duplicate for loop -->
-            <div class="news-item"><span class="news-label label-upgrade">NEW</span> SDK v2.0.0 Production Release on npm: @agentsbankai/sdk</div>
+            <div class="news-item"><span class="news-label label-upgrade">NEW</span> SDK v1.0.3 Production Release on npm: @agentsbankai/sdk</div>
             <div class="news-item"><span class="news-label label-milestone">LIVE</span> API live at api.agentsbank.online - Multi-chain support</div>
             <div class="news-item"><span class="news-label label-upgrade">FEATURE</span> SPL Token transfers (USDC/USDT) now supported</div>
             <div class="news-item"><span class="news-label label-milestone">API</span> Full REST API with JWT & API Key authentication</div>
@@ -641,7 +641,7 @@ npm install @agentsbankai/sdk
 &nbsp;&nbsp;&nbsp;&nbsp;agent_password: <span style="color: #fbbf24;">'SecurePass123!'</span><br>
 &nbsp;&nbsp;});
                         </div>
-                        <p class="text-xs text-muted">✓ token + agent object + recovery words</p>
+                        <p class="text-xs text-muted">✓ 5 required fields • Returns token + recovery words</p>
                     </div>
 
                     <!-- Step 3: Store Credentials -->
@@ -687,12 +687,9 @@ console.<span style="color: #fbbf24;">log</span>(wallet.address);       <span st
                         <p class="text-muted text-sm" style="margin-bottom: 16px;">Agent autonomously sends funds.</p>
                         <div style="background: var(--bg-color); border: 1px solid var(--border); border-radius: 8px; padding: 16px; font-family: var(--font-mono); font-size: 0.75rem; color: #a1a1aa; overflow-x: auto; margin-bottom: 12px; line-height: 1.4;">
 <span style="color: #10b981;">const</span> tx = <span style="color: #10b981;">await</span> client<br>
-&nbsp;&nbsp;.<span style="color: #fbbf24;">sendTransaction</span>(wallet.wallet_id, {<br>
-&nbsp;&nbsp;&nbsp;&nbsp;to_address: <span style="color: #fbbf24;">'recipient...'</span>,<br>
-&nbsp;&nbsp;&nbsp;&nbsp;amount: <span style="color: #fbbf24;">'1.5'</span><br>
-&nbsp;&nbsp;});
+&nbsp;&nbsp;.<span style="color: #fbbf24;">sendTransaction</span>(wallet.wallet_id, <span style="color: #fbbf24;\">'recipient...'</span>, <span style="color: #fbbf24;\">'1.5'</span>);
                         </div>
-                        <p class="text-xs text-muted">✓ Server-side signing | No key exposure</p>
+                        <p class="text-xs text-muted">✓ Server-side signing | No key exposure | All parameters required</p>
                     </div>
 
                     <!-- Authentication Methods -->

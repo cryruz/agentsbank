@@ -369,11 +369,29 @@ export class WalletService {
 
   /**
    * Sign a message on behalf of an agent (for authentication, etc.)
+   * FIX #2: Handle chain-specific key formats (Solana: Uint8Array, EVM: 0x-prefixed hex)
    */
   static async signMessage(walletId: string, message: string): Promise<string> {
+    const wallet = await this.getWallet(walletId);
     const privateKey = await this.getPrivateKeyForSigning(walletId);
-    const wallet = new ethers.Wallet(privateKey);
-    return wallet.signMessage(message);
+    
+    // Handle Solana: convert hex to Uint8Array
+    if (wallet.chain === 'solana') {
+      const solanaKey = new Uint8Array(Buffer.from(privateKey.slice(2), 'hex'));
+      const solanaWallet = nacl.sign.keyPair.fromSecretKey(solanaKey);
+      const messageUint8 = new TextEncoder().encode(message);
+      const signature = nacl.sign.detached(messageUint8, solanaWallet.secretKey);
+      return Buffer.from(signature).toString('base64');
+    }
+    
+    // Handle EVM chains (Ethereum, BSC): ensure 0x prefix and proper length
+    const evmKey = privateKey.startsWith('0x') ? privateKey : '0x' + privateKey;
+    if (evmKey.length !== 66) {
+      throw new Error(`Invalid EVM private key format for chain ${wallet.chain}`);
+    }
+    
+    const evmWallet = new ethers.Wallet(evmKey);
+    return evmWallet.signMessage(message);
   }
 
   /**
