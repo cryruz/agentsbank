@@ -1,0 +1,948 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AgentsBank | The Financial Layer for Autonomous Agents</title>
+    <style>
+        /* --- CORE VARIABLES --- */
+        :root {
+            --bg-color: #030303;
+            --bg-surface: #0a0a0a;
+            --bg-surface-2: #111111;
+            --text-main: #ffffff;
+            --text-secondary: #a1a1aa;
+            --text-tertiary: #52525b;
+            --border: rgba(255, 255, 255, 0.08);
+            --border-hover: rgba(255, 255, 255, 0.2);
+            --accent: #ffffff;
+            --accent-glow: rgba(255, 255, 255, 0.15);
+            --success: #10b981;
+            --font-main: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+            --ease-out: cubic-bezier(0.215, 0.61, 0.355, 1);
+        }
+
+        /* --- RESET & BASE --- */
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            font-family: var(--font-main);
+            line-height: 1.5;
+            -webkit-font-smoothing: antialiased;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        /* Canvas Background */
+        #agent-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            opacity: 0.3;
+            pointer-events: none;
+        }
+
+        a { text-decoration: none; color: inherit; transition: color 0.2s; }
+        ul { list-style: none; }
+        img { display: block; max-width: 100%; }
+
+        /* --- UTILITIES --- */
+        .container { max-width: 1240px; margin: 0 auto; padding: 0 24px; position: relative; z-index: 1; }
+        .flex { display: flex; }
+        .flex-col { flex-direction: column; }
+        .items-center { align-items: center; }
+        .justify-between { justify-content: space-between; }
+        .justify-center { justify-content: center; }
+        .gap-2 { gap: 0.5rem; }
+        .gap-4 { gap: 1rem; }
+        .gap-8 { gap: 2rem; }
+        
+        .text-center { text-align: center; }
+        .mono { font-family: var(--font-mono); }
+        .text-sm { font-size: 0.875rem; }
+        .text-xs { font-size: 0.75rem; }
+        .text-muted { color: var(--text-secondary); }
+        .uppercase { text-transform: uppercase; letter-spacing: 0.05em; }
+        .font-medium { font-weight: 500; }
+        .gradient-text {
+            background: linear-gradient(180deg, #fff 0%, #a1a1aa 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        /* --- SCROLL ANIMATIONS --- */
+        .reveal {
+            opacity: 0;
+            transform: translateY(30px);
+            transition: all 0.8s var(--ease-out);
+        }
+        .reveal.active {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* --- COMPONENTS --- */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 12px 24px;
+            border-radius: 6px;
+            font-weight: 500;
+            font-size: 0.95rem;
+            transition: all 0.2s var(--ease-out);
+            cursor: pointer;
+            border: 1px solid transparent;
+        }
+
+        .btn-primary {
+            background: var(--accent);
+            color: #000;
+        }
+        .btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 0 20px var(--accent-glow);
+        }
+
+        .btn-secondary {
+            background: rgba(255,255,255,0.05);
+            color: var(--text-main);
+            border: 1px solid var(--border);
+        }
+        .btn-secondary:hover {
+            background: rgba(255,255,255,0.1);
+            border-color: var(--border-hover);
+        }
+
+        .btn-text { padding: 0; background: transparent; color: var(--text-secondary); }
+        .btn-text:hover { color: var(--text-main); }
+
+        /* --- NEWS TICKER --- */
+        .news-ticker-wrap {
+            background: #000;
+            border-bottom: 1px solid var(--border);
+            padding: 10px 0;
+            overflow: hidden;
+            position: relative;
+            z-index: 90;
+        }
+        .news-ticker { display: flex; width: max-content; animation: ticker 40s linear infinite; }
+        .news-ticker:hover { animation-play-state: paused; }
+        .news-item { display: flex; align-items: center; padding-right: 60px; font-family: var(--font-mono); font-size: 0.8rem; color: #888; white-space: nowrap; }
+        .news-label { color: #fff; margin-right: 8px; font-weight: 700; text-transform: uppercase; font-size: 0.7rem; padding: 2px 6px; border-radius: 2px; }
+        .label-upgrade { background: rgba(255, 255, 255, 0.15); color: #fff; }
+        .label-funding { background: rgba(16, 185, 129, 0.2); color: #34d399; }
+        .label-milestone { background: rgba(59, 130, 246, 0.2); color: #60a5fa; }
+        @keyframes ticker { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
+
+        /* --- HEADER --- */
+        header {
+            position: fixed;
+            top: 0;
+            width: 100%;
+            z-index: 100;
+            padding: 16px 0;
+            background: rgba(3, 3, 3, 0.85);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--border);
+        }
+        nav { display: flex; justify-content: space-between; align-items: center; }
+        .logo { font-weight: 600; font-size: 1.1rem; display: flex; align-items: center; gap: 10px; letter-spacing: -0.02em; }
+        .logo-mark { width: 28px; height: 28px; background: white; color: black; border-radius: 6px; display: grid; place-items: center; font-weight: 800; }
+        .nav-links { display: flex; gap: 32px; }
+        .nav-links a { font-size: 0.9rem; color: var(--text-secondary); }
+        .nav-links a:hover { color: var(--text-main); }
+        .mobile-menu-btn { display: none; background: none; border: none; color: white; cursor: pointer; }
+
+        /* --- HERO --- */
+        .hero { padding-top: 140px; padding-bottom: 100px; position: relative; }
+        .hero-grid { display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 60px; align-items: center; }
+        .hero-content h1 { font-size: 4rem; line-height: 1.05; font-weight: 600; letter-spacing: -0.03em; margin-bottom: 24px; }
+        .hero-content p { font-size: 1.25rem; color: var(--text-secondary); margin-bottom: 40px; max-width: 540px; }
+        .hero-visual { position: relative; }
+        .code-window {
+            background: #080808;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 40px 80px -20px rgba(0,0,0,0.6);
+            transform: perspective(1000px) rotateY(-5deg) rotateX(2deg);
+            transition: transform 0.5s ease;
+        }
+        .code-window:hover { transform: perspective(1000px) rotateY(0) rotateX(0); }
+        .code-header { padding: 12px 16px; border-bottom: 1px solid var(--border); display: flex; gap: 8px; align-items: center; background: #0f0f0f; }
+        .window-controls { display: flex; gap: 6px; }
+        .control { width: 10px; height: 10px; border-radius: 50%; background: #333; }
+        .filename { margin-left: 12px; font-size: 0.8rem; color: #555; font-family: var(--font-mono); }
+        .code-body { padding: 24px; font-family: var(--font-mono); font-size: 0.85rem; color: #d4d4d8; line-height: 1.6; }
+        .syntax-k { color: #c084fc; }
+        .syntax-f { color: #60a5fa; }
+        .syntax-s { color: #4ade80; }
+        .syntax-c { color: #52525b; font-style: italic; }
+        .syntax-n { color: #facc15; }
+
+        /* --- STORY / PROBLEM SECTION --- */
+        .story-section {
+            padding: 100px 0;
+            background: linear-gradient(180deg, rgba(3,3,3,0) 0%, rgba(10,10,10,0.8) 50%, rgba(3,3,3,0) 100%);
+            border-top: 1px solid var(--border);
+            border-bottom: 1px solid var(--border);
+        }
+        .comparison-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-top: 60px; }
+        .comparison-card {
+            background: rgba(255,255,255,0.02);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 40px;
+            position: relative;
+            transition: all 0.3s ease;
+        }
+        .comparison-card.negative { border-color: rgba(239, 68, 68, 0.2); }
+        .comparison-card.positive { border-color: rgba(16, 185, 129, 0.2); }
+        .comp-icon-box {
+            width: 48px; height: 48px;
+            display: flex; align-items: center; justify-content: center;
+            margin-bottom: 24px;
+            border-radius: 8px;
+            background: rgba(255,255,255,0.05);
+        }
+        .comp-list li {
+            margin-bottom: 16px;
+            padding-left: 24px;
+            position: relative;
+            color: var(--text-secondary);
+        }
+        .comp-list li::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 8px;
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+        }
+        .negative .comp-list li::before { background: #ef4444; }
+        .positive .comp-list li::before { background: #10b981; }
+
+        /* --- FEATURES BENTO --- */
+        .features-section { padding: 140px 0; }
+        .section-header { margin-bottom: 80px; text-align: center; }
+        .section-header h2 { font-size: 2.5rem; font-weight: 600; letter-spacing: -0.02em; margin-bottom: 16px; }
+        .bento-grid { display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(2, 380px); gap: 24px; }
+        .bento-card {
+            background: var(--bg-surface);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 32px;
+            position: relative;
+            overflow: hidden;
+            transition: border-color 0.3s ease, transform 0.3s ease;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+        }
+        .bento-card:hover { border-color: var(--border-hover); }
+        
+        /* Abstract Image Styling */
+        .bento-img {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            object-fit: cover; 
+            opacity: 0.15; 
+            filter: grayscale(100%) contrast(200%) brightness(0.5);
+            mix-blend-mode: overlay; 
+            transition: opacity 0.5s ease, transform 0.6s ease; 
+            z-index: 0;
+            pointer-events: none;
+        }
+        .bento-card:hover .bento-img { opacity: 0.25; transform: scale(1.05); }
+        
+        .bento-gradient {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(to top, #030303 0%, rgba(3,3,3,0.6) 50%, rgba(3,3,3,0) 100%);
+            z-index: 1;
+        }
+        .bento-content { position: relative; z-index: 2; }
+        .bento-card.large { grid-column: span 2; }
+        .bento-card.tall { grid-row: span 2; }
+        .feature-icon {
+            width: 40px; height: 40px; background: rgba(255,255,255,0.1);
+            backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 8px; display: grid; place-items: center; margin-bottom: 20px; color: white;
+        }
+
+        /* --- TARGET USERS --- */
+        .users-section { padding: 100px 0; background: #080808; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+        .users-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 32px; }
+        .user-card {
+            background: var(--bg-surface);
+            padding: 32px;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            text-align: center;
+            transition: transform 0.3s ease;
+        }
+        .user-card:hover { transform: translateY(-5px); border-color: #333; }
+        .user-icon {
+            width: 60px; height: 60px; margin: 0 auto 24px;
+            background: #1a1a1a; border-radius: 12px;
+            display: grid; place-items: center; font-size: 1.5rem;
+        }
+
+        /* --- CTA & FOOTER --- */
+        .cta-section { padding: 100px 0; text-align: center; background: linear-gradient(180deg, var(--bg-color) 0%, #111 100%); }
+        .cta-box {
+            background: #111; border: 1px solid var(--border); border-radius: 24px;
+            padding: 80px 40px; position: relative; overflow: hidden;
+        }
+        .cta-box::before {
+            content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.5), transparent);
+        }
+        footer { border-top: 1px solid var(--border); padding: 80px 0 40px; background: #000; }
+        .footer-grid { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 40px; margin-bottom: 60px; }
+        .footer-col h5 { color: #fff; margin-bottom: 20px; font-size: 0.9rem; }
+        .footer-col ul li { margin-bottom: 12px; }
+        .footer-col a { color: var(--text-secondary); font-size: 0.9rem; }
+        .footer-col a:hover { color: #fff; }
+
+        /* --- RESPONSIVE --- */
+        @media (max-width: 1024px) {
+            .hero-grid, .comparison-grid, .users-grid { grid-template-columns: 1fr; }
+            .hero h1 { font-size: 3rem; }
+            .bento-grid { grid-template-columns: 1fr 1fr; grid-template-rows: auto; }
+            .bento-card.large, .bento-card.tall { grid-column: span 1; grid-row: span 1; height: 300px; }
+        }
+        @media (max-width: 768px) {
+            .nav-links { display: none; }
+            .mobile-menu-btn { display: block; }
+            .bento-grid { grid-template-columns: 1fr; }
+            .footer-grid { grid-template-columns: 1fr; gap: 40px; }
+            .hero h1 { font-size: 2.5rem; }
+            .code-window { display: none; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- CANVAS BACKGROUND -->
+    <canvas id="agent-canvas"></canvas>
+
+    <!-- Header -->
+    <header>
+        <div class="container">
+            <nav>
+                <a href="#" class="logo">
+                    <div class="logo-mark">A</div>
+                    AgentsBank
+                </a>
+                <ul class="nav-links">
+                    <li><a href="#story">The Problem</a></li>
+                    <li><a href="#features">Features</a></li>
+                    <li><a href="#users">For Developers</a></li>
+                    <li><a href="#getting-started">Get Started</a></li>
+                    <li><a href="https://github.com/cryruz/agentsbank" target="_blank">Docs</a></li>
+                </ul>
+                <div class="flex items-center gap-4">
+                    <a href="https://npmjs.com/package/@agentsbankai/sdk" class="btn btn-text text-sm mono" target="_blank">npm</a>
+                    <a href="https://npmjs.com/package/@agentsbankai/sdk" class="btn btn-primary text-sm" target="_blank">Install SDK</a>
+                    <button class="mobile-menu-btn">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
+                    </button>
+                </div>
+            </nav>
+        </div>
+    </header>
+
+    <!-- News Ticker -->
+    <div class="news-ticker-wrap">
+        <div class="news-ticker">
+            <div class="news-item"><span class="news-label label-upgrade">NEW</span> SDK v2.0.0 Production Release on npm: @agentsbankai/sdk</div>
+            <div class="news-item"><span class="news-label label-milestone">LIVE</span> API live at api.agentsbank.online - Multi-chain support</div>
+            <div class="news-item"><span class="news-label label-upgrade">FEATURE</span> SPL Token transfers (USDC/USDT) now supported</div>
+            <div class="news-item"><span class="news-label label-milestone">API</span> Full REST API with JWT & API Key authentication</div>
+            <div class="news-item"><span class="news-label label-upgrade">WALLETS</span> Custodial wallet management for AI agents</div>
+            <!-- Duplicate for loop -->
+            <div class="news-item"><span class="news-label label-upgrade">NEW</span> SDK v2.0.0 Production Release on npm: @agentsbankai/sdk</div>
+            <div class="news-item"><span class="news-label label-milestone">LIVE</span> API live at api.agentsbank.online - Multi-chain support</div>
+            <div class="news-item"><span class="news-label label-upgrade">FEATURE</span> SPL Token transfers (USDC/USDT) now supported</div>
+            <div class="news-item"><span class="news-label label-milestone">API</span> Full REST API with JWT & API Key authentication</div>
+            <div class="news-item"><span class="news-label label-upgrade">WALLETS</span> Custodial wallet management for AI agents</div>
+        </div>
+    </div>
+
+    <main>
+        <!-- Hero Section -->
+        <section class="hero">
+            <div class="container">
+                <div class="hero-grid">
+                    <div class="hero-content reveal">
+                        <h1>Financial autonomy<br>for the <span class="gradient-text">Agent Internet</span>.</h1>
+                        <p>The "Stripe for AIs". Provide your autonomous agents with custodial wallets, multi-chain transactions, and secure key management. Remove the human bottleneck.</p>
+                        <div class="flex gap-4" style="flex-wrap: wrap;">
+                            <a href="https://npmjs.com/package/@agentsbankai/sdk" class="btn btn-primary" target="_blank">Install SDK</a>
+                            <a href="#story" class="btn btn-secondary">Learn Why</a>
+                        </div>
+                        
+                        <div style="background: rgba(255,255,255,0.02); border: 1px solid var(--border); border-radius: 8px; padding: 12px 16px; margin-top: 32px; font-family: var(--font-mono); font-size: 0.9rem; color: #4ade80; display: flex; align-items: center; gap: 12px; cursor: pointer;" onclick="navigator.clipboard.writeText('npm install @agentsbankai/sdk'); this.style.background='rgba(16,185,129,0.15)'; setTimeout(() => this.style.background='rgba(255,255,255,0.02)', 1500);">
+                            <span style="color: var(--text-secondary);">$</span>
+                            <span style="flex: 1;">npm install @agentsbankai/sdk</span>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="opacity: 0.6;"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                        </div>
+                        
+                        <div class="flex items-center gap-2 text-sm text-muted" style="margin-top: 24px;">
+                            <span class="flex items-center gap-1"><div style="width:8px; height:8px; background:#10b981; border-radius:50%;"></div> API Ready</span>
+                            <span>•</span>
+                            <span>4 Chains Supported</span>
+                            <span>•</span>
+                            <span>TypeScript SDK Live</span>
+                        </div>
+                    </div>
+                    
+                    <div class="hero-visual reveal delay-1">
+                        <div class="code-window">
+                            <div class="code-header">
+                                <div class="window-controls">
+                                    <div class="control" style="background:#ef4444"></div>
+                                    <div class="control" style="background:#eab308"></div>
+                                    <div class="control" style="background:#22c55e"></div>
+                                </div>
+                                <span class="filename">autonomous_agent.ts</span>
+                            </div>
+                            <div class="code-body">
+                                <div><span class="syntax-k">import</span> { createClient } <span class="syntax-k">from</span> <span class="syntax-s">'@agentsbankai/sdk'</span>;</div>
+                                <br>
+                                <div><span class="syntax-c">// 1. Initialize & Register Agent</span></div>
+                                <div><span class="syntax-k">const</span> client = <span class="syntax-f">createClient</span>();</div>
+                                <div><span class="syntax-k">const</span> agent = <span class="syntax-k">await</span> client.<span class="syntax-f">register</span>({</div>
+                                &nbsp;&nbsp;<span class="syntax-n">human_email</span>: <span class="syntax-s">'dev@example.com'</span>,<br>
+                                &nbsp;&nbsp;<span class="syntax-n">agent_password</span>: <span class="syntax-s">'SecurePass123!'</span><br>
+                                });<br>
+                                <br>
+                                <div><span class="syntax-c">// 2. Create Wallet & Send Transaction</span></div>
+                                <div><span class="syntax-k">const</span> wallet = <span class="syntax-k">await</span> client.<span class="syntax-f">createWallet</span>(<span class="syntax-s">'solana'</span>);</div>
+                                <div><span class="syntax-k">await</span> client.<span class="syntax-f">send</span>(wallet.wallet_id, {</div>
+                                &nbsp;&nbsp;<span class="syntax-n">to_address</span>: <span class="syntax-s">'recipient...'</span>,<br>
+                                &nbsp;&nbsp;<span class="syntax-n">amount</span>: <span class="syntax-s">'1.5'</span><br>
+                                });</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- THE STORY / PROBLEM SECTION -->
+        <section id="story" class="story-section">
+            <div class="container">
+                <div class="section-header reveal">
+                    <h2>The Human Bottleneck</h2>
+                    <p class="text-muted">Why agents can't scale in the current economy.</p>
+                </div>
+
+                <div class="comparison-grid">
+                    <!-- The Problem -->
+                    <div class="comparison-card negative reveal">
+                        <div class="comp-icon-box">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                        </div>
+                        <h3>The Old Way</h3>
+                        <p class="text-muted" style="margin-bottom: 24px;">Agents are smart, but financially crippled. Every economic action requires a human in the loop.</p>
+                        <ul class="comp-list">
+                            <li>Agents lack legal identity (DID)</li>
+                            <li>Cannot hold native crypto wallets</li>
+                            <li>Requires manual approval for gas fees</li>
+                            <li>Micro-transactions are uneconomical</li>
+                            <li>Limited scalability due to latency</li>
+                        </ul>
+                    </div>
+
+                    <!-- The Solution -->
+                    <div class="comparison-card positive reveal delay-1">
+                        <div class="comp-icon-box">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path></svg>
+                        </div>
+                        <h3>The Agent Internet</h3>
+                        <p class="text-muted" style="margin-bottom: 24px;">AgentsBank provides the foundational infrastructure for A2A (Agent-to-Agent) commerce.</p>
+                        <ul class="comp-list">
+                            <li><strong>Custodial Wallets</strong> with encrypted key storage</li>
+                            <li><strong>Multi-Chain Support</strong> ETH, BSC, SOL, BTC</li>
+                            <li><strong>Token Transfers</strong> Native + USDC/USDT</li>
+                            <li><strong>TypeScript SDK</strong> Full type safety</li>
+                            <li><strong>Fee Management</strong> Auto-collection system</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Features Bento Grid -->
+        <section id="features" class="features-section">
+            <div class="container">
+                <div class="section-header reveal">
+                    <h2>Complete Financial Stack</h2>
+                    <p class="text-muted">Everything needed to go from prototype to production-grade autonomy.</p>
+                </div>
+
+                <div class="bento-grid">
+                    <!-- Identity -->
+                    <div class="bento-card large reveal">
+                        <!-- Abstract Network Texture -->
+                        <img src="https://picsum.photos/seed/network_abstract/800/600" class="bento-img" alt="Identity">
+                        <div class="bento-gradient"></div>
+                        <div class="bento-content">
+                            <div class="feature-icon">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                            </div>
+                            <h3>Persistent Identity (AID)</h3>
+                            <p class="text-muted text-sm" style="margin-top: 8px;">Agents receive unique identities with encrypted key storage. JWT & API key authentication for secure access.</p>
+                        </div>
+                    </div>
+
+                    <!-- Wallets -->
+                    <div class="bento-card reveal delay-1">
+                        <!-- Abstract Layers Texture -->
+                        <img src="https://picsum.photos/seed/abstract_layers/400/400" class="bento-img" alt="Wallets">
+                        <div class="bento-gradient"></div>
+                        <div class="bento-content">
+                            <div class="feature-icon">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect><line x1="1" y1="10" x2="23" y2="10"></line></svg>
+                            </div>
+                            <h3>Multi-Chain Wallets</h3>
+                            <p class="text-muted text-sm" style="margin-top: 8px;">Custodial wallets on Ethereum, BSC, Solana & Bitcoin. Encrypted key management. Real-time balance tracking.</p>
+                        </div>
+                    </div>
+
+                    <!-- Orchestration -->
+                    <div class="bento-card reveal delay-2">
+                        <!-- Abstract Lines/Flow Texture -->
+                        <img src="https://picsum.photos/seed/abstract_flow/400/400" class="bento-img" alt="Orchestration">
+                        <div class="bento-gradient"></div>
+                        <div class="bento-content">
+                            <div class="feature-icon">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
+                            </div>
+                            <h3>Transaction Orchestration</h3>
+                            <p class="text-muted text-sm" style="margin-top: 8px;">Execute sends, token transfers (USDC/USDT), manage nonces. Full REST API with rate limiting.</p>
+                        </div>
+                    </div>
+
+                    <!-- Guardrails -->
+                    <div class="bento-card tall reveal">
+                        <!-- Abstract Structure/Monolith Texture -->
+                        <img src="https://picsum.photos/seed/abstract_structure/400/800" class="bento-img" alt="Guardrails">
+                        <div class="bento-gradient"></div>
+                        <div class="bento-content">
+                            <div class="feature-icon">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+                            </div>
+                            <h3>Security & Governance</h3>
+                            <p class="text-muted text-sm" style="margin-top: 8px;">Row-level security policies. Fee collection system. Transaction monitoring and audit logs.</p>
+                        </div>
+                    </div>
+
+                    <!-- Autonomy -->
+                    <div class="bento-card large reveal">
+                        <!-- Abstract Light/Void Texture -->
+                        <img src="https://picsum.photos/seed/abstract_light/800/600" class="bento-img" alt="Autonomy">
+                        <div class="bento-gradient"></div>
+                        <div class="bento-content">
+                            <div class="feature-icon">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+                            </div>
+                            <h3>Agent Economy Ready</h3>
+                            <p class="text-muted text-sm" style="margin-top: 8px;">TypeScript SDK with full type safety. BIP39 recovery words. Production-ready infrastructure for autonomous A2A commerce.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Target Users -->
+        <section id="users" class="users-section">
+            <div class="container">
+                <div class="section-header text-center reveal">
+                    <span class="tag" style="background:rgba(255,255,255,0.05); padding:4px 12px; border-radius:100px; border:1px solid var(--border);">Built for</span>
+                    <h2>Who uses AgentsBank?</h2>
+                </div>
+                <div class="users-grid">
+                    <div class="user-card reveal delay-1">
+                        <div class="user-icon">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>
+                        </div>
+                        <h3>AI Developers</h3>
+                        <p class="text-muted text-sm" style="margin-top: 12px;">Building logistics bots, research agents, or trading algorithms. You need your agents to pay for compute and APIs autonomously.</p>
+                    </div>
+                    <div class="user-card reveal delay-2">
+                        <div class="user-icon">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
+                        </div>
+                        <h3>Agent Marketplaces</h3>
+                        <p class="text-muted text-sm" style="margin-top: 12px;">Platforms selling agent services. Use AgentsBank IDs to verify agent reputation and handle escrow payments automatically.</p>
+                    </div>
+                    <div class="user-card reveal delay-3">
+                        <div class="user-icon">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
+                        </div>
+                        <h3>Collaborative Swarms</h3>
+                        <p class="text-muted text-sm" style="margin-top: 12px;">Groups of AIs working together. Enable internal A2A transactions and resource sharing within the swarm.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Getting Started Guide -->
+        <section id="getting-started" style="padding: 100px 0; background: linear-gradient(180deg, #080808 0%, #0a0a0a 100%); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);">
+            <div class="container">
+                <div class="section-header reveal">
+                    <span class="tag" style="background:rgba(16,185,129,0.1); padding:4px 12px; border-radius:100px; border:1px solid rgba(16,185,129,0.3);">Quick Start</span>
+                    <h2>Get Started in 5 Minutes</h2>
+                    <p class="text-muted">Complete guide to register, authenticate, and deploy your first agent wallet.</p>
+                </div>
+
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 32px; margin-top: 60px;">
+                    
+                    <!-- Step 1: Install -->
+                    <div class="reveal" style="background: var(--bg-surface); border: 1px solid var(--border); border-radius: 12px; padding: 32px;">
+                        <div style="display: flex; align-items: center; margin-bottom: 16px;">
+                            <div style="width: 40px; height: 40px; background: rgba(16,185,129,0.2); border-radius: 8px; display: grid; place-items: center; margin-right: 12px; color: var(--success); font-weight: bold; font-size: 1.2rem;">1</div>
+                            <h3 style="margin: 0;">Install SDK</h3>
+                        </div>
+                        <p class="text-muted text-sm" style="margin-bottom: 16px;">Add AgentsBank to your project.</p>
+                        <div style="background: var(--bg-color); border: 1px solid var(--border); border-radius: 8px; padding: 16px; font-family: var(--font-mono); font-size: 0.85rem; color: #10b981; overflow-x: auto; margin-bottom: 12px;">
+npm install @agentsbankai/sdk
+                        </div>
+                        <p class="text-xs text-muted">Requires Node.js ≥ 18.0.0</p>
+                    </div>
+
+                    <!-- Step 2: Register Agent -->
+                    <div class="reveal delay-1" style="background: var(--bg-surface); border: 1px solid var(--border); border-radius: 12px; padding: 32px;">
+                        <div style="display: flex; align-items: center; margin-bottom: 16px;">
+                            <div style="width: 40px; height: 40px; background: rgba(16,185,129,0.2); border-radius: 8px; display: grid; place-items: center; margin-right: 12px; color: var(--success); font-weight: bold; font-size: 1.2rem;">2</div>
+                            <h3 style="margin: 0;">Register Agent</h3>
+                        </div>
+                        <p class="text-muted text-sm" style="margin-bottom: 16px;">Create human identity & AI agent pair.</p>
+                        <div style="background: var(--bg-color); border: 1px solid var(--border); border-radius: 8px; padding: 16px; font-family: var(--font-mono); font-size: 0.75rem; color: #a1a1aa; overflow-x: auto; margin-bottom: 12px; line-height: 1.4;">
+<span style="color: #10b981;">import</span> { AgentsBank } <span style="color: #10b981;">from</span> <span style="color: #fbbf24;">'@agentsbankai/sdk'</span>;<br>
+<br>
+<span style="color: #10b981;">const</span> client = <span style="color: #60a5fa;">new</span> <span style="color: #fbbf24;">AgentsBank</span>();<br>
+<span style="color: #10b981;">const</span> result = <span style="color: #10b981;">await</span> client<br>
+&nbsp;&nbsp;.<span style="color: #fbbf24;">registerAgent</span>({<br>
+&nbsp;&nbsp;&nbsp;&nbsp;human_email: <span style="color: #fbbf24;">'dev@example.com'</span>,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;human_username: <span style="color: #fbbf24;">'dev1'</span>,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;firstName: <span style="color: #fbbf24;">'John'</span>,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;lastName: <span style="color: #fbbf24;">'Doe'</span>,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;agent_password: <span style="color: #fbbf24;">'SecurePass123!'</span><br>
+&nbsp;&nbsp;});
+                        </div>
+                        <p class="text-xs text-muted">✓ token + agent object + recovery words</p>
+                    </div>
+
+                    <!-- Step 3: Store Credentials -->
+                    <div class="reveal delay-2" style="background: var(--bg-surface); border: 1px solid var(--border); border-radius: 12px; padding: 32px;">
+                        <div style="display: flex; align-items: center; margin-bottom: 16px;">
+                            <div style="width: 40px; height: 40px; background: rgba(16,185,129,0.2); border-radius: 8px; display: grid; place-items: center; margin-right: 12px; color: var(--success); font-weight: bold; font-size: 1.2rem;">3</div>
+                            <h3 style="margin: 0;">Store Credentials</h3>
+                        </div>
+                        <p class="text-muted text-sm" style="margin-bottom: 16px;">Persist token for future requests.</p>
+                        <div style="background: var(--bg-color); border: 1px solid var(--border); border-radius: 8px; padding: 16px; font-family: var(--font-mono); font-size: 0.75rem; color: #a1a1aa; overflow-x: auto; margin-bottom: 12px; line-height: 1.4;">
+<span style="color: #10b981;">const</span> client = <span style="color: #60a5fa;">new</span> <span style="color: #fbbf24;">AgentsBank</span>({<br>
+&nbsp;&nbsp;token: <span style="color: #fbbf24;">'eyJhbGc...'</span> <span style="color: #6b7280;">// JWT</span><br>
+});<br>
+<span style="color: #6b7280;">// OR use API Key for long-lived access</span><br>
+client.<span style="color: #fbbf24;">setApiKey</span>(agent.api_key);
+                        </div>
+                        <p class="text-xs text-muted">Keep credentials secure. Never commit to git.</p>
+                    </div>
+
+                    <!-- Step 4: Create Wallet -->
+                    <div class="reveal delay-3" style="background: var(--bg-surface); border: 1px solid var(--border); border-radius: 12px; padding: 32px;">
+                        <div style="display: flex; align-items: center; margin-bottom: 16px;">
+                            <div style="width: 40px; height: 40px; background: rgba(16,185,129,0.2); border-radius: 8px; display: grid; place-items: center; margin-right: 12px; color: var(--success); font-weight: bold; font-size: 1.2rem;">4</div>
+                            <h3 style="margin: 0;">Create Wallet</h3>
+                        </div>
+                        <p class="text-muted text-sm" style="margin-bottom: 16px;">Deploy custodial wallet for agent.</p>
+                        <div style="background: var(--bg-color); border: 1px solid var(--border); border-radius: 8px; padding: 16px; font-family: var(--font-mono); font-size: 0.75rem; color: #a1a1aa; overflow-x: auto; margin-bottom: 12px; line-height: 1.4;">
+<span style="color: #10b981;">const</span> wallet = <span style="color: #10b981;">await</span> client<br>
+&nbsp;&nbsp;.<span style="color: #fbbf24;">createWallet</span>(<span style="color: #fbbf24;">'solana'</span>);<br>
+<br>
+console.<span style="color: #fbbf24;">log</span>(wallet.wallet_id);    <span style="color: #6b7280;">// ✓ now returned</span><br>
+console.<span style="color: #fbbf24;">log</span>(wallet.address);       <span style="color: #6b7280;">// Agent's address</span>
+                        </div>
+                        <p class="text-xs text-muted">✓ wallet_id included | 4 chains supported</p>
+                    </div>
+
+                    <!-- Step 5: Send Transaction -->
+                    <div class="reveal delay-4" style="background: var(--bg-surface); border: 1px solid var(--border); border-radius: 12px; padding: 32px;">
+                        <div style="display: flex; align-items: center; margin-bottom: 16px;">
+                            <div style="width: 40px; height: 40px; background: rgba(16,185,129,0.2); border-radius: 8px; display: grid; place-items: center; margin-right: 12px; color: var(--success); font-weight: bold; font-size: 1.2rem;">5</div>
+                            <h3 style="margin: 0;">Send Transaction</h3>
+                        </div>
+                        <p class="text-muted text-sm" style="margin-bottom: 16px;">Agent autonomously sends funds.</p>
+                        <div style="background: var(--bg-color); border: 1px solid var(--border); border-radius: 8px; padding: 16px; font-family: var(--font-mono); font-size: 0.75rem; color: #a1a1aa; overflow-x: auto; margin-bottom: 12px; line-height: 1.4;">
+<span style="color: #10b981;">const</span> tx = <span style="color: #10b981;">await</span> client<br>
+&nbsp;&nbsp;.<span style="color: #fbbf24;">sendTransaction</span>(wallet.wallet_id, {<br>
+&nbsp;&nbsp;&nbsp;&nbsp;to_address: <span style="color: #fbbf24;">'recipient...'</span>,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;amount: <span style="color: #fbbf24;">'1.5'</span><br>
+&nbsp;&nbsp;});
+                        </div>
+                        <p class="text-xs text-muted">✓ Server-side signing | No key exposure</p>
+                    </div>
+
+                    <!-- Authentication Methods -->
+                    <div class="reveal delay-5" style="background: var(--bg-surface); border: 1px solid var(--border); border-radius: 12px; padding: 32px;">
+                        <div style="display: flex; align-items: center; margin-bottom: 16px;">
+                            <div style="width: 40px; height: 40px; background: rgba(59,130,246,0.2); border-radius: 8px; display: grid; place-items: center; margin-right: 12px; color: #3b82f6; font-weight: bold;">🔐</div>
+                            <h3 style="margin: 0;">Authentication</h3>
+                        </div>
+                        <p class="text-muted text-sm" style="margin-bottom: 16px;">Two secure methods to authenticate.</p>
+                        <div style="background: var(--bg-color); border: 1px solid var(--border); border-radius: 8px; padding: 12px; font-family: var(--font-mono); font-size: 0.7rem; color: #a1a1aa; overflow-x: auto; margin-bottom: 12px; line-height: 1.3;">
+<span style="color: #fbbf24;">// Method 1: JWT Token (Short-lived)</span><br>
+client.<span style="color: #fbbf24;">setToken</span>(agent.token);<br>
+<br>
+<span style="color: #fbbf24;">// Method 2: API Key (Long-lived)</span><br>
+client.<span style="color: #fbbf24;">setApiKey</span>(agent.api_key);
+                        </div>
+                        <p class="text-xs text-muted">✓ Only agents access their own wallets<br>✓ Encrypted key storage on server<br>✓ No private keys in SDK</p>
+                    </div>
+
+                    <!-- Security Notes -->
+                    <div class="reveal delay-6" style="background: linear-gradient(135deg, rgba(59,130,246,0.1), rgba(16,185,129,0.1)); border: 1px solid rgba(59,130,246,0.3); border-radius: 12px; padding: 32px;">
+                        <div style="display: flex; align-items: center; margin-bottom: 16px;">
+                            <div style="width: 40px; height: 40px; background: rgba(59,130,246,0.2); border-radius: 8px; display: grid; place-items: center; margin-right: 12px; color: #3b82f6; font-weight: bold;">⚠️</div>
+                            <h3 style="margin: 0;">Security</h3>
+                        </div>
+                        <ul style="list-style: none; padding: 0; margin: 0;">
+                            <li class="text-sm text-muted" style="margin-bottom: 8px;">✓ Admin keys never exposed to clients</li>
+                            <li class="text-sm text-muted" style="margin-bottom: 8px;">✓ Server-side key management & signing</li>
+                            <li class="text-sm text-muted" style="margin-bottom: 8px;">✓ RLS policies enforce agent isolation</li>
+                            <li class="text-sm text-muted" style="margin-bottom: 8px;">✓ API Key & JWT authentication</li>
+                            <li class="text-sm text-muted" style="margin-bottom: 8px;">✓ BIP39 recovery words for backup</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div style="margin-top: 60px; padding-top: 40px; border-top: 1px solid var(--border); text-align: center;">
+                    <p class="text-muted" style="margin-bottom: 20px;">Ready to go deeper?</p>
+                    <div class="flex justify-center gap-4">
+                        <a href="https://github.com/cryruz/agentsbank/blob/main/README.md" class="btn btn-secondary" target="_blank">📖 Full Documentation</a>
+                        <a href="https://github.com/cryruz/agentsbank/tree/main/examples" class="btn btn-secondary" target="_blank">💡 Code Examples</a>
+                        <a href="https://github.com/cryruz/agentsbank/issues" class="btn btn-secondary" target="_blank">🐛 Report Issues</a>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- CTA -->
+        <section class="cta-section">
+            <div class="container">
+                <div class="cta-box reveal">
+                    <h2 style="font-size: 3rem; margin-bottom: 16px;">Deploy the Agent Economy</h2>
+                    <p class="text-muted" style="margin-bottom: 32px; font-size: 1.1rem;">Remove the human bottleneck. Start building autonomous financial agents today.</p>
+                        <div class="flex justify-center gap-4">
+                        <a href="https://npmjs.com/package/@agentsbankai/sdk" class="btn btn-primary" target="_blank">Install SDK</a>
+                        <a href="https://github.com/cryruz/agentsbank" class="btn btn-secondary" target="_blank">View on GitHub</a>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <footer>
+        <div class="container">
+            <div class="footer-grid">
+                <div class="footer-col">
+                    <a href="https://agentsbank.online" class="logo" style="margin-bottom: 24px;">
+                        <div class="logo-mark">A</div>
+                        AgentsBank
+                    </a>
+                    <p class="text-muted text-sm" style="max-width: 300px;">
+                        The financial infrastructure for autonomous AI agents. Multi-chain, custodial wallets, secure key management. Open source, production-ready.
+                    </p>
+                </div>
+                <div class="footer-col">
+                    <h5>SDK & Docs</h5>
+                    <ul>
+                        <li><a href="https://npmjs.com/package/@agentsbankai/sdk" target="_blank">npm Package</a></li>
+                        <li><a href="https://github.com/cryruz/agentsbank" target="_blank">GitHub Repository</a></li>
+                        <li><a href="https://github.com/cryruz/agentsbank/blob/main/README.md" target="_blank">API Docs</a></li>
+                        <li><a href="https://github.com/cryruz/agentsbank/issues" target="_blank">Issues</a></li>
+                    </ul>
+                </div>
+                <div class="footer-col">
+                    <h5>Tech</h5>
+                    <ul>
+                        <li><a href="#">REST API</a></li>
+                        <li><a href="#">TypeScript SDK</a></li>
+                        <li><a href="#">Multi-Chain</a></li>
+                        <li><a href="#">Security</a></li>
+                    </ul>
+                </div>
+                <div class="footer-col">
+                    <h5>Community</h5>
+                    <ul>
+                        <li><a href="https://github.com/cryruz/agentsbank" target="_blank">GitHub</a></li>
+                        <li><a href="mailto:info@agentsbank.online">Email</a></li>
+                        <li><a href="https://agentsbank.online" target="_blank">Website</a></li>
+                        <li><a href="#">Status</a></li>
+                    </ul>
+                </div>
+            </div>
+            <div class="flex justify-between items-center" style="border-top: 1px solid #222; padding-top: 32px; flex-wrap: wrap; gap: 16px;">
+                <div class="text-xs text-muted">© 2026 AgentsBank. All rights reserved. Contact: info@agentsbank.online</div>
+                <div class="flex gap-4 text-xs text-muted">
+                    <a href="https://npmjs.com/package/@agentsbankai/sdk" target="_blank">npm</a>
+                    <a href="https://github.com/cryruz/agentsbank" target="_blank">GitHub</a>
+                    <a href="mailto:info@agentsbank.online">Contact</a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- SCRIPTS -->
+    <script>
+        // --- 1. SCROLL REVEAL ANIMATION ---
+        const revealElements = document.querySelectorAll('.reveal');
+        
+        const revealOnScroll = () => {
+            const windowHeight = window.innerHeight;
+            const elementVisible = 150;
+            
+            revealElements.forEach((reveal) => {
+                const elementTop = reveal.getBoundingClientRect().top;
+                if (elementTop < windowHeight - elementVisible) {
+                    reveal.classList.add('active');
+                }
+            });
+        };
+
+        window.addEventListener('scroll', revealOnScroll);
+        revealOnScroll();
+
+        // --- 2. CANVAS NETWORK ANIMATION ---
+        const canvas = document.getElementById('agent-canvas');
+        const ctx = canvas.getContext('2d');
+        
+        let width, height;
+        let particles = [];
+        const particleCount = 60;
+        const connectionDistance = 150;
+        const mouseDistance = 200;
+        let mouse = { x: null, y: null };
+
+        window.addEventListener('mousemove', (e) => {
+            mouse.x = e.x;
+            mouse.y = e.y;
+        });
+
+        window.addEventListener('resize', resize);
+
+        function resize() {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+            initParticles();
+        }
+
+        class Particle {
+            constructor() {
+                this.x = Math.random() * width;
+                this.y = Math.random() * height;
+                this.vx = (Math.random() - 0.5) * 0.5;
+                this.vy = (Math.random() - 0.5) * 0.5;
+                this.size = Math.random() * 2 + 1;
+            }
+
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                if (this.x < 0 || this.x > width) this.vx *= -1;
+                if (this.y < 0 || this.y > height) this.vy *= -1;
+
+                let dx = mouse.x - this.x;
+                let dy = mouse.y - this.y;
+                let distance = Math.sqrt(dx * dx + dy * dy);
+                
+                if (distance < mouseDistance) {
+                    const forceDirectionX = dx / distance;
+                    const forceDirectionY = dy / distance;
+                    const force = (mouseDistance - distance) / mouseDistance;
+                    const directionX = forceDirectionX * force * 0.5;
+                    const directionY = forceDirectionY * force * 0.5;
+                    this.x -= directionX;
+                    this.y -= directionY;
+                }
+            }
+
+            draw() {
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        function initParticles() {
+            particles = [];
+            for (let i = 0; i < particleCount; i++) {
+                particles.push(new Particle());
+            }
+        }
+
+        function animate() {
+            ctx.clearRect(0, 0, width, height);
+            
+            for (let i = 0; i < particles.length; i++) {
+                particles[i].update();
+                particles[i].draw();
+
+                for (let j = i; j < particles.length; j++) {
+                    let dx = particles[i].x - particles[j].x;
+                    let dy = particles[i].y - particles[j].y;
+                    let distance = Math.sqrt(dx*dx + dy*dy);
+
+                    if (distance < connectionDistance) {
+                        ctx.beginPath();
+                        let opacity = 1 - (distance / connectionDistance);
+                        ctx.strokeStyle = `rgba(255, 255, 255, ${opacity * 0.15})`;
+                        ctx.lineWidth = 1;
+                        ctx.moveTo(particles[i].x, particles[i].y);
+                        ctx.lineTo(particles[j].x, particles[j].y);
+                        ctx.stroke();
+                    }
+                }
+            }
+            requestAnimationFrame(animate);
+        }
+
+        resize();
+        animate();
+
+        // --- 3. MOBILE MENU ---
+        const menuBtn = document.querySelector('.mobile-menu-btn');
+        const navLinks = document.querySelector('.nav-links');
+
+        menuBtn.addEventListener('click', () => {
+            if (navLinks.style.display === 'flex') {
+                navLinks.style.display = 'none';
+            } else {
+                navLinks.style.display = 'flex';
+                navLinks.style.flexDirection = 'column';
+                navLinks.style.position = 'absolute';
+                navLinks.style.top = '70px';
+                navLinks.style.left = '0';
+                navLinks.style.width = '100%';
+                navLinks.style.background = '#030303';
+                navLinks.style.padding = '20px';
+                navLinks.style.borderBottom = '1px solid #333';
+            }
+        });
+    </script>
+</body>
+</html>

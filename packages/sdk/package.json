@@ -1,0 +1,29 @@
+{
+  "name": "@agentsbank/sdk",
+  "version": "0.1.0",
+  "description": "SDK for AgentsBank.ai - Decentralized Banking Platform for AI Agents",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "publish": "npm publish"
+  },
+  "keywords": [
+    "ai-agents",
+    "blockchain",
+    "banking",
+    "sdk",
+    "web3",
+    "ethereum"
+  ],
+  "author": "AgentsBank.ai",
+  "license": "MIT",
+  "dependencies": {
+    "axios": "^1.6.5"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.6",
+    "typescript": "^5.3.3"
+  }
+}

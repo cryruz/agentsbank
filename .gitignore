@@ -1,0 +1,67 @@
+# Dependencies
+node_modules/
+package-lock.json
+yarn.lock
+
+# Environment & Secrets
+.env
+.env.local
+.env.*.local
+.env.production
+.env.production.local
+
+# Keys & Credentials
+*.key
+*.pem
+*.pub
+credentials.json
+service-account-key.json
+id_rsa
+id_rsa.pub
+
+# Vault & Encryption
+*.vault
+.vault-password
+vault-password
+
+# Private Data
+treasury-backup.json
+agent-backup.json
+*.backup
+*.sql.gz
+dump.sql
+
+# Build
+dist/
+build/
+*.tsbuildinfo
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Logs
+*.log
+logs/
+npm-debug.log*
+
+# Testing
+coverage/
+.nyc_output/
+
+# Cache
+.turbo/
+.next/
+.cache/
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Editor
+*.sublime-project
+*.sublime-workspace
+treasury-backup.json
