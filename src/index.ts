@@ -12,6 +12,11 @@ export { AgentsBank, createClient } from './client.js';
 export type {
   // Config
   AgentsBankConfig,
+  RetryConfig,
+  CacheConfig,
+  GuardrailsConfig,
+  WebhookConfig,
+  WebhookEvent,
   
   // Auth
   RegisterAgentRequest,
@@ -44,6 +49,12 @@ export type {
   EstimateGasRequest,
   EstimateGasResponse,
   
+  // Helper Methods
+  SendSafeRequest,
+  SendMultipleRequest,
+  SendMultipleResponse,
+  BalanceCheckResponse,
+  
   // Catalogue
   ChainInfo,
   CatalogueResponse,
@@ -56,11 +67,12 @@ export type {
   ApiError,
 } from './types.js';
 
-// Error class
-export { AgentsBankError } from './types.js';
+// Error classes
+export { AgentsBankError, ErrorCode, createError, errorCodeFromStatus } from './errors.js';
+export type { } from './errors.js';
 
 // Version
-export const VERSION = '1.0.0';
+export const VERSION = '1.0.5';
 
 // Supported chains constant
 export const SUPPORTED_CHAINS: readonly string[] = [

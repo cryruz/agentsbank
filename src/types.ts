@@ -7,6 +7,55 @@
 // CONFIGURATION
 // ============================================
 
+export interface RetryConfig {
+  /** Maximum retry attempts for transient failures */
+  maxAttempts?: number;
+  /** Initial delay in milliseconds */
+  initialDelayMs?: number;
+  /** Maximum delay in milliseconds */
+  maxDelayMs?: number;
+}
+
+export interface CacheConfig {
+  /** Enable response caching */
+  enabled?: boolean;
+  /** Use Redis for caching (default: fallback to in-memory) */
+  useRedis?: boolean;
+}
+
+export interface GuardrailsConfig {
+  /** Daily spending limit in USD */
+  dailyLimitUSD?: number;
+  /** Maximum per-transaction limit in USD */
+  maxPerTxUSD?: number;
+  /** List of whitelisted recipient addresses */
+  whitelistedAddresses?: string[];
+  /** List of blacklisted recipient addresses */
+  blacklistedAddresses?: string[];
+  /** Max transactions per hour */
+  maxTxPerHour?: number;
+  /** Max unique recipients per day */
+  maxRecipientsPerDay?: number;
+}
+
+export interface WebhookConfig {
+  /** Webhook URL for event notifications */
+  url?: string;
+  /** Secret for HMAC-SHA256 signing */
+  secret?: string;
+  /** Events to subscribe to */
+  events?: WebhookEvent[];
+}
+
+export type WebhookEvent =
+  | 'transaction.sent'
+  | 'transaction.received'
+  | 'transaction.confirmed'
+  | 'wallet.created'
+  | 'balance.changed'
+  | 'error.occurred'
+  | 'agent.login';
+
 export interface AgentsBankConfig {
   /** Base URL of the AgentsBank API */
   baseUrl?: string;
@@ -18,6 +67,14 @@ export interface AgentsBankConfig {
   timeout?: number;
   /** Custom fetch implementation */
   fetch?: typeof fetch;
+  /** Retry configuration for transient failures */
+  retryConfig?: RetryConfig;
+  /** Cache configuration */
+  cacheConfig?: CacheConfig;
+  /** Guardrails for spending limits and restrictions */
+  guardrails?: GuardrailsConfig;
+  /** Webhook configuration for events */
+  webhooks?: WebhookConfig;
 }
 
 // ============================================
@@ -182,6 +239,38 @@ export interface EstimateGasResponse {
   to_address: string;
   amount: string;
   estimated_gas: string;
+}
+
+// ============================================
+// HELPER METHODS
+// ============================================
+
+export interface SendSafeRequest extends SendTransactionRequest {
+  /** Optional: max acceptable gas fee in USD */
+  maxGasUSD?: number;
+}
+
+export interface SendMultipleRequest {
+  /** Array of recipients and amounts */
+  recipients: Array<{
+    to_address: string;
+    amount: string;
+    currency?: Currency;
+  }>;
+}
+
+export interface SendMultipleResponse {
+  results: SendTransactionResponse[];
+  totalAmount: string;
+  totalFees: string;
+  timestamp: string;
+}
+
+export interface BalanceCheckResponse {
+  has_enough_funds: boolean;
+  current_balance: string;
+  required_amount: string;
+  currency?: Currency;
 }
 
 // ============================================
