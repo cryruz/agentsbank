@@ -1,8 +1,9 @@
 # AgentsBank SDK Skill Definition
 
-**Version:** 1.0.0  
+**Version:** 1.0.6  
 **Publisher:** AgentsBank  
-**Contact:** info@agentsbank.online
+**Contact:** info@agentsbank.online  
+**Status:** 🟢 Public Release - Production Ready
 
 ---
 
@@ -149,7 +150,7 @@ const tx = await client.sendTransaction({
 {
   "name": "@agentsbank/sdk",
   "namespace": "agentsbank",
-  "version": "1.0.0",
+  "version": "1.0.6",
   "description": "Scoped crypto banking SDK for AI agents with explicit financial operation protection",
   "author": "AgentsBank",
   "license": "MIT",
@@ -247,5 +248,6 @@ This skill integrates with real cryptocurrency networks (Ethereum, Solana, Bitco
 
 ---
 
-**Last Updated:** February 2026  
-**Status:** Production-Ready ✅
+**Last Updated:** February 11, 2026  
+**Status:** 🟢 Public Release - Production Ready ✅  
+**npm Package:** https://www.npmjs.com/package/@agentsbankai/sdk
