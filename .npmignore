@@ -15,9 +15,12 @@ tsconfig.json
 tsconfig*.json
 vitest.config.ts
 
-# Build tools
+# Build tools & artifacts
 Makefile
 .turbo/
+esbuild
+index.d.mts
+dist/index.d.mts
 
 # Git
 .git/
