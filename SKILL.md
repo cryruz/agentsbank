@@ -9,23 +9,27 @@
 
 ## 🎯 PURPOSE & CAPABILITY
 
-This skill provides **secure, scoped crypto banking operations** for AI agents via the official AgentsBank SDK. It enables:
+This skill provides **secure, scoped crypto banking operations** for AI agents via the official AgentsBank SDK. It enables agents to manage wallets, check balances, and execute transactions with explicit user control.
 
 ### ✅ Capabilities (Read-Only & Safe)
-- ✓ Fetch agent wallet balances (ETH, BSC, SOL, BTC chains)
-- ✓ Retrieve transaction history
-- ✓ Query wallet details and metadata
-- ✓ Sign messages (authentication/verification only, no fund transfer)
+- ✓ Fetch agent wallet balances across all supported chains (Ethereum, BSC, Solana, Bitcoin)
+- ✓ Retrieve transaction history with filtering and pagination
+- ✓ Query wallet details, metadata, and account information
+- ✓ Sign messages for authentication and verification (no fund transfer)
+- ✓ Estimate gas fees before transaction execution
+- ✓ List all wallets with pagination support
 
 ### ⚠️ Capabilities (Write/Financial - Requires Explicit User Invocation)
 - ⚠️ Send crypto transactions (only if `disableModelInvocation: false` is explicitly overridden by user)
 - ⚠️ Create new wallets (only if `disableModelInvocation: false` is explicitly overridden by user)
+- ⚠️ Self-register agents and humans autonomously
 
 ### ❌ NOT Included (Out of Scope)
 - OAuth2 delegated access to external wallets
 - Webhooks or event subscriptions
 - Smart contract deployment
 - Sandboxed testing (use testnet chains directly)
+- Private key export or management
 
 ---
 
@@ -87,37 +91,53 @@ AGENTSBANK_AGENT_PASSWORD=your_secure_password_here
 ### 3. Create Client Instance
 
 ```typescript
-import { createClient } from '@agentsbank/sdk';
+import { AgentsBankSDK } from '@agentsbankai/sdk';
 
-// Load credentials from environment
-const client = createClient({
-  baseUrl: process.env.AGENTSBANK_API_URL || 'https://api.agentsbank.online',
-  token: undefined // Will be set after login
+// Initialize SDK with API credentials
+const bank = new AgentsBankSDK({
+  apiUrl: process.env.AGENTSBANK_API_URL || 'https://api.agentsbank.online',
+  timeout: parseInt(process.env.AGENTSBANK_TIMEOUT_MS || '30000')
 });
 
-// Authenticate on startup
-await client.login({
-  agent_username: process.env.AGENTSBANK_AGENT_USERNAME!,
-  agent_password: process.env.AGENTSBANK_AGENT_PASSWORD!
+// Authenticate using agent credentials
+const { token, agent } = await bank.login({
+  agentUsername: process.env.AGENTSBANK_AGENT_USERNAME!,
+  agentPassword: process.env.AGENTSBANK_AGENT_PASSWORD!
 });
 
-console.log('✅ Authenticated as:', client.agentId);
+console.log('✅ Authenticated as:', agent.agent_id);
 ```
 
 ### 4. Use Safe Operations (Always Allowed)
 
 ```typescript
 // Get wallet balance (safe, read-only)
-const balance = await client.getBalance(walletId);
-console.log('SOL Balance:', balance.SOL);
+const balance = await bank.getBalance(walletId);
+console.log('Balance:', balance);
 
 // Get transaction history (safe, read-only)
-const history = await client.getTransactionHistory(walletId, { limit: 10 });
+const history = await bank.getTransactionHistory(walletId, { 
+  limit: 10,
+  offset: 0 
+});
 console.log('Recent transactions:', history);
 
 // Sign a message (safe, no fund transfer)
-const signature = await client.signMessage(walletId, 'verify-ownership');
+const signature = await bank.signMessage(walletId, 'verify-ownership');
 console.log('Signature:', signature);
+
+// Estimate gas fees before sending
+const gasEstimate = await bank.estimateGas({
+  walletId,
+  toAddress: '0x...',
+  amount: '1.5',
+  chain: 'ethereum'
+});
+console.log('Estimated gas:', gasEstimate);
+
+// List all wallets with pagination
+const wallets = await bank.listWallets({ limit: 20, offset: 0 });
+console.log('Agent wallets:', wallets);
 ```
 
 ---
@@ -128,11 +148,12 @@ The following operations **will not execute autonomously** and require explicit 
 
 ```typescript
 // ❌ This requires user to explicitly call it
-// (disableModelInvocation: true is set below)
-const tx = await client.sendTransaction({
-  from_wallet_id: walletId,
-  to_address: recipientAddress,
+// (disableModelInvocation: true is set by default)
+const tx = await bank.sendTransaction({
+  walletId,
+  toAddress: recipientAddress,
   amount: '1.5',
+  chain: 'solana',
   token: 'SOL'
 });
 ```
@@ -141,6 +162,28 @@ const tx = await client.sendTransaction({
 - Financial operations that move assets must never be autonomous
 - Requires explicit user approval before execution
 - Prevents unintended fund transfers due to model hallucination
+- v1.0.6 adds comprehensive error handling for validation failures
+
+### Error Handling (v1.0.6)
+The SDK provides typed errors for better debugging:
+
+```typescript
+import { AgentsBankSDK, SDKError } from '@agentsbankai/sdk';
+
+try {
+  const tx = await bank.sendTransaction({
+    walletId,
+    toAddress: '0xinvalid', // Invalid address
+    amount: '100',
+    chain: 'ethereum'
+  });
+} catch (error) {
+  if (error instanceof SDKError) {
+    console.error('SDK Error:', error.code, error.message);
+    // Error codes: INVALID_ADDRESS, INSUFFICIENT_BALANCE, INVALID_CHAIN, etc.
+  }
+}
+```
 
 ---
 
@@ -148,13 +191,14 @@ const tx = await client.sendTransaction({
 
 ```json
 {
-  "name": "@agentsbank/sdk",
+  "name": "@agentsbankai/sdk",
   "namespace": "agentsbank",
   "version": "1.0.6",
-  "description": "Scoped crypto banking SDK for AI agents with explicit financial operation protection",
+  "description": "Scoped crypto banking SDK for AI agents with explicit financial operation protection, comprehensive error handling, and multi-chain support",
   "author": "AgentsBank",
   "license": "MIT",
   "homepage": "https://agentsbank.online",
+  "repository": "https://github.com/agentsbank/sdk",
   "docs": "https://docs.agentsbank.online/sdk",
   "primaryEnv": "AGENTSBANK_AGENT_PASSWORD",
   "requiredEnvs": [
@@ -173,17 +217,26 @@ const tx = await client.sendTransaction({
     "read:balance",
     "read:history",
     "read:wallet",
+    "read:estimate",
     "sign:message"
   ],
   "restrictedScopes": [
     "write:transaction",
-    "write:wallet"
+    "write:wallet",
+    "write:register"
   ],
+  "features": {
+    "multiChain": ["ethereum", "bsc", "solana", "bitcoin"],
+    "errorHandling": "Typed errors with specific error codes",
+    "validation": "Client-side parameter validation",
+    "pagination": "Supported for wallet and transaction listing"
+  },
   "installMechanism": "npm",
-  "codeFiles": ["src/client.ts", "src/types.ts", "src/index.ts"],
+  "codeFiles": ["src/client.ts", "src/types.ts", "src/errors.ts", "src/index.ts"],
   "noExecutableScripts": true,
   "noDiskPersistence": true,
-  "noModelAutonomy": true
+  "noModelAutonomy": true,
+  "changelog": "https://github.com/agentsbank/sdk/blob/main/CHANGELOG.md"
 }
 ```
 
@@ -248,6 +301,8 @@ This skill integrates with real cryptocurrency networks (Ethereum, Solana, Bitco
 
 ---
 
-**Last Updated:** February 11, 2026  
+**Last Updated:** February 11, 2026 (v1.0.6 release)  
 **Status:** 🟢 Public Release - Production Ready ✅  
-**npm Package:** https://www.npmjs.com/package/@agentsbankai/sdk
+**npm Package:** https://www.npmjs.com/package/@agentsbankai/sdk  
+**GitHub:** https://github.com/agentsbank/sdk  
+**Changes in v1.0.6:** Comprehensive error handling, enhanced type definitions, improved client implementation
